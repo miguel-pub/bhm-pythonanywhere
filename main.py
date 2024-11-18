@@ -1,5 +1,10 @@
 import ctypes
 import datetime
+import smtplib
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import os
 from pathlib import Path
 import fitz
@@ -19,6 +24,7 @@ class Berichtsheftmaker:
         unedited_subjects: list = self.txt_to_list(texfile)
         cleaned_subjects: list = self.delete_dupe(unedited_subjects)
         self.listtoexcel(cleaned_subjects)
+        self.send_mail()
 
     def download_pdf(self):
         url: str = f"https://service.viona24.com/stpusnl/daten/US_IT_2024_Winter_FIAE_B_2024_abKW{self.calenderweek}.pdf"
@@ -45,7 +51,6 @@ class Berichtsheftmaker:
     def txt_to_list(data: str) -> list:
         with open(data, "r") as file:
             unedited_list: list = []
-            edited_list: list = []
             for line in file:
                 if "-" in line and ":" not in line:
                     fach = line.split(" ")[0]
@@ -69,7 +74,7 @@ class Berichtsheftmaker:
     def listtoexcel(self, data) -> None:
         os.remove(f"output.txt")
         os.remove(f"StundenplanKW{self.calenderweek}.pdf")
-        path = "copycopy.xlsx"
+        path: str = "copycopy.xlsx"
         workbook = openpyxl.load_workbook(path)
         worksheet = workbook["Tabelle1"]
         counter: int = 4
@@ -106,6 +111,27 @@ class Berichtsheftmaker:
         worksheet["E1"] = f"Jahr {self.currentyear}"
         workbook.save(f"Berichtsheft_KW{self.calenderweek}.xlsx")
 
+    def send_mail(self):
+        sender_email = os.getenv("SENDER_MAIL")
+        password = os.getenv("GMAIL_PASSWORD")
+        subject = "mail"
+        body = "Body"
+        recipient_email = os.getenv("RECIPIENT_MAIL")
+        with open(f"Berichtsheft_KW{self.calenderweek}.xlsx", "rb") as attachment:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(attachment.read())
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition",
+                        f"attachment; filename= Berichtsheft_KW{self.calenderweek}.xlsx")
+        message = MIMEMultipart()
+        message['Subject'] = subject
+        message['From'] = sender_email
+        message['To'] = recipient_email
+        html_part = MIMEText(body)
+        message.attach(part)
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, password)
+            server.sendmail(sender_email, recipient_email, message.as_string())
 
 App = Berichtsheftmaker
 
