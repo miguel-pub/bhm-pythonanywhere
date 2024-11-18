@@ -111,7 +111,7 @@ class Berichtsheftmaker:
         worksheet["E1"] = f"Jahr {self.currentyear}"
         workbook.save(f"Berichtsheft_KW{self.calenderweek}.xlsx")
 
-    def send_mail(self):
+    def send_mail(self) -> None:
         sender_email = os.getenv("SENDER_MAIL")
         password = os.getenv("GMAIL_PASSWORD")
         subject = "mail"
